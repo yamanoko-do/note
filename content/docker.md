@@ -1,12 +1,6 @@
 ---
 created: 2024-11-06 20:03:37 星期三
 modified: 2024-11-10 12:35:09 星期日
-aliases:
-  - Docker
-  - docker
-  - rongqi
-  - 容器
-tags:
 ---
 # 安装和配置
 ## docker
