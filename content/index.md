@@ -1,5 +1,5 @@
 ---
-title: 用来存放笔记
+title: 用来存放笔记的地方
 ---
 
 Quartz is a fast, batteries-included static-site generator that transforms Markdown content into fully functional websites. Thousands of students, developers, and teachers publish personal notes, wikis, and [digital gardens](https://jzhao.xyz/posts/networked-thought) to the web.
