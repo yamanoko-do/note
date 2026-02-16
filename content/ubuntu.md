@@ -1,17 +1,15 @@
 ---
 created: 2024-10-23 16:07:58 星期三
-modified: 2025-09-12 21:02
+modified: 2026-02-14 16:05
 tags:
 ---
 
-
-[显示键盘按键的网站](https://www.keyboardtester.com/tester.html)：我希望用他来检查哪个按键没有被释放
 # 安装
 [ubuntu镜像下载](https://launchpad.net/ubuntu/+cdmirrors):选择china南阳理工的镜像源
 [Windows11 安装 Ubuntu 避坑指南](https://www.bilibili.com/video/BV1Cc41127B9/?spm_id_from=333.337.search-card.all.click)：只设置根挂载点`/`即可
 # 配置
 - 查看系统版本：`lsb_release -a`或`cat /etc/issue`
-- 同步ubuntu与windows时间
+- 让ubuntu使用本地时间
 	```shell
 	sudo timedatectl set-local-rtc 1
 	```
@@ -32,6 +30,34 @@ tags:
 - [Nvidia-smi really slow to execute](https://forums.developer.nvidia.com/t/nvidia-smi-really-slow-to-execute/165429)：sudo apt install --reinstall nvidia-compute-utils-560
 - 查看默认渲染：apt-get install mesa-utils、glxinfo | grep "OpenGL"
 ```
+## 设置swap
+- 查看当前swap大小：
+```bash
+free -h
+```
+- 查看swap文件：
+```bash
+swapon --show
+```
+- 修改swap大小：
+```bash
+# 关闭当前 swap 文件（必须先关闭才能修改）
+sudo swapoff /swap.img
+# 删除原有 64G 的 swap.img 文件
+sudo rm /swap.img
+# 创建新的 8G swap.img 文件（可把 8G 改成你想要的大小，如 16G、4G）
+sudo fallocate -l 8G /swap.img
+# 设置安全权限（必须 600，否则系统会拒绝使用）
+sudo chmod 600 /swap.img
+# 格式化为 swap 格式
+sudo mkswap /swap.img
+# 重新启用新的 swap 文件
+sudo swapon /swap.img
+# 验证是否生效
+swapon --show
+free -h
+```
+## 终端代理
 1. 安装网络工具
 ```shell
 sudo apt install net-tools
@@ -42,10 +68,6 @@ sudo apt install net-tools
 export https_proxy=http://127.0.0.1:7897 && export http_proxy=http://127.0.0.1:7897 && export all_proxy=socks5://127.0.0.1:7897
 ```
 ## 个性化配置
-
-### 可选软件包
-- ping工具：sudo apt install iputils-ping
-
 ### 终端样式
 配置文件
 ├── 文本：120列，24行
@@ -56,7 +78,6 @@ export https_proxy=http://127.0.0.1:7897 && export http_proxy=http://127.0.0.1:7
 
 ### grub引导配置
 - 关机：halt
-
 #### 主题
 [grub主题下载](https://www.gnome-look.org/browse/):[Elegant-mountain-grub-themes](https://www.gnome-look.org/p/2206121/)、kawaiki-grub2-theme
 - 创建主题目录
@@ -98,7 +119,8 @@ sudo apt install gnome-shell-extensions
 - 查找鼠标：Wiggle
 - 窗口魔灯效果：Compiz alike magic lamp
 - 显示应用毛玻璃效果：Blur my Shell ，关闭Dash中Dash to Dock blur
-- [调节外接显示器亮度](https://cn.linux-terminal.com/?p=6048#google_vignette)：gnome-display-brightness-ddcutil
+- [调节外接显示器亮度](https://cn.linux-terminal.com/?p=6048#google_vignette)：Brightness control using ddcutil 
+- topbar排序：Top Bar Organizer
 
 
 应该没用：[UBUNTU NVIDIA使用wayland](https://zhuanlan.zhihu.com/p/383383140)
@@ -122,62 +144,100 @@ dpkg -i install libicu72_72.1-3ubuntu3_amd64.deb
 4. 点击“保存”，即可在系统启动时自动启动程序
 5. 实际配置了`~/.config/autostart`
 
-# 常用命令
-## 快捷键
+# 快捷键
 - [截图](https://blog.csdn.net/qq_38880380/article/details/78233687)：`Win + Shift + S` 保存到剪贴板，`Alt + Shift + S` 保存到图片目录
 - 打开终端：`Ctrl + Alt + T`
 - 关闭终端：`Ctrl + D`或`exit`
 - 显示隐藏文件：`Ctrl + H`
 - 激活窗口移动模式：`Alt + F7`然后使用键盘的箭头键移动窗口，`enter`键确定，`esc`退出
-- 音量调节：`ctrl`+`up/down`
-## 命令
-### 基本
+- 音量调节：`ctrl`+`arrow_up/arrow_down`
+
+# 命令
+## 基本
 - 查看当前路径：`pwd`
 - 跳到上级目录：`cd ..`
 - 进入xx指定目录：`cd xx
 - 创建xx文件夹：`mkdir xx`
-- 记录终端：
+- 记录终端输出到文件：
 	- 带有颜色控制符：script  -f output.txt开始记录，exit停止记录，使用less -R output.txt查看
 	- 纯文本：your_command > output.txt
-
-### 查询
-- 列出当前文件夹内容：`ls`, -a显示隐藏文件，-lh以长格式列出更详细信息
-- 获取命令使用介绍：`XX --help`
-- 显示以 `xx` 开头的命令历史：`history | grep xx`
-- 查找名字包含 `xx` 的文件：`sudo find / -name "*xx*"`
-- `df -h` ：查看磁盘情况
-- `du` ：查看文件夹下各个文件和子文件夹的占用大小
-	- `-h`：以人类可读形式(K、M、G)子目录内容
-	- `-sh *`：不递归
-	- `-sh .*`：不递归显示隐藏文件
-	- `sudo du -sh * | sort -hr`： 按文件大小降序排列
-- 列出可执行文件或共享库所依赖的动态链接库：`ldd`
-- `tree -L n`：打印文件树，L控制深度
-### 文件操作
-- 创建符号链接： `ln -sf <绝对/相对链接所在目录> <链接名称>`, -s创建链接,-f强制执行,建议使用绝对路径，ls -l查看
-- 创建文件：`touch XX`
-- 移动文件(夹)：`mv XX /home/y`
-- 复制文件并重命名：`cp XX /home/y/YY`
-- 删除文件：`rm XX`，删除文件夹：`rm -r XX`
-- 下载文件：aria2c -s 16 -c "url"，支持线程和断点
-- 压缩：
-	```shell
-	#压缩文件夹
-	sudo tar -czvf archive_name.tar.gz folder_to_compress/
-	sudo zip -r myfolder.zip myfolder
-	#解压
-	sudo tar -czvf version1.tar.gz ./yolokinect
-	sudo unzip file_name.zip -d target_path
-	```
-
-- [使用vi和vim编辑文件](https://blog.csdn.net/weixin_53269650/article/details/138137434)
-- sudo ntfsfix -d /dev/sda：修复硬盘挂载
-### 权限相关
+- `ctrl`+`z`：挂起任务，`jobs`查看挂起的任务，`fg %n`恢复到前台运行，`bg %n`恢复到后台运行，`kill -9 %n`杀死进程
 - 递归更改文件夹所有者：sudo chown -R yama ~/docker_share/
 - 提升操作权限：`sudo`
 - 以管理员权限打开文件：`sudo gedit`
 
+## 查询
+- 列出当前文件夹内容：`ls -a`显示隐藏文件，-lh以长格式列出更详细信息
+- 显示以 `xx` 开头的命令历史：`history | grep xx`
+- 查找名字包含 `xx` 的文件：`sudo find / -name "*xx*"`
+- `df -h` ：查看磁盘情况
+- `sudo du -sh .* * | sort -hr` ：查看文件夹下各个文件和子文件夹的占用大小
+- 列出可执行文件或共享库所依赖的动态链接库：`ldd`
+- `tree -L n`：打印文件树，L控制深度
+- `lsusb`：查看所有 USB 设备
+- `glances`：硬件状态显示
 
+## 文件操作
+- 创建符号链接： `ln -sf <绝对/相对链接所在目录> <链接名称>`, -s创建链接,-f强制执行,建议使用绝对路径，`ls -l`查看
+- 创建文件：`touch XX`
+- 移动文件(夹)：`mv XX /home/y`
+- 复制文件并重命名：`cp XX /home/y/YY`
+- [advcp/mv](https://github.com/a23506/advcpmv)：使用`-g`参数启用进度条
+```bash
+curl -fsSL https://raw.githubusercontent.com/a23506/advcpmv/master/install.sh -o /tmp/advcpmv-install.sh && bash /tmp/advcpmv-install.sh
+
+```
+- 删除文件：`rm XX`，删除文件夹：`rm -r XX`
+- 下载文件：aria2c -x 4 -s 4 -c "url"，支持线程和断点，s分段，x并发数
+```bash
+aria2c -x 4 -s 4 -c "https://lmb.informatik.uni-freiburg.de/data/SceneFlowDatasets_CVPR16/Release_april16/data/FlyingThings3D/derived_data/flyingthings3d__disparity.tar.bz2"
+```
+- 压缩：
+```shell
+#压缩文件夹，很慢
+sudo tar -czvf archive_name.tar.gz folder_to_compress/
+sudo tar -czvf version1.tar.gz ./yolokinect
+#zip
+sudo zip -r myfolder.zip myfolder
+sudo unzip file_name.zip -d target_path
+
+# tar
+-x 解压，-f -从标准输入读取而不是文件
+pv flyingthings3d__frames_cleanpass.tar | tar -xf - -C ./
+
+pv flyingthings3d__disparity.tar.bz2 | tar -xjf - -C ../autodl-fs/SceneFlow/
+
+# 使用带有进度条的zstd压缩多个文件，很快这个，等级-1 到 22，-T0使用所有cpu线程，比不过zip的压缩率，但是很快
+##压缩
+files="frames_finalpass sceneflow_finalpass_flying3d_test.txt sceneflow_finalpass_flying3d_train.txt"
+
+tar -cf - $files \
+| pv -s $(du -sb "$files" | awk '{sum+=$1} END{printf "%.0f\n", sum}') \
+| zstd -T0 -3 > ./psmnet_flything.tar.zst
+
+## 解压
+pv flyingthings3d_clean.tar.zst | zstd -d | tar -xf - -C /outputpath
+```
+
+- [使用vi和vim编辑文件](https://blog.csdn.net/weixin_53269650/article/details/138137434)
+- sudo ntfsfix -d /dev/sda：修复硬盘挂载
+
+### tmux
+**Tmux**是一个强大的终端复用器，它允许用户在一个终端窗口中创建、访问和控制多个会话。这些会话可以独立于终端窗口存在，即使终端窗口被关闭，会话仍然可以在后台运行。这对于需要长时间运行的程序或者需要远程操作的场景非常有用。
+```bash
+# 创建会话
+tmux new -s your-session-name
+# 退出会话
+tmux detach
+# 进入xx会话
+tmux attach -t your-session-name
+# 关闭会话
+tmux kill-session -t your-session-name
+# 重命名会话
+tmux rename-session -t old-session new-session
+# 查看会话列表
+tmux ls
+```
 # APT工具
 apt是基于dpkg的软件包管理工具，可以通过apt、apt-get等命令行工具来使用。dpkg是Debian和基于Debian的Linux（Ubuntu）发行版中的底层软件包管理工具，Debian系统使用.deb作为软件包的文件扩展名
 ## dpkg
@@ -194,7 +254,7 @@ apt是基于dpkg的软件包管理工具，可以通过apt、apt-get等命令行
 	1. apt update：更新本地软件包列表，读取 `/etc/apt/sources.list` 和 `/etc/apt/sources.list.d/` 目录下的所有文件，获取软件包源的列表
 	2. apt install：安装包
 	3. apt remove：卸载包
-- apt换源：[清华源](https://mirror.tuna.tsinghua.edu.cn/help/ubuntu/)，[阿里源(这个源少包)](https://developer.aliyun.com/mirror/ubuntu)`/etc/apt/sources.list`
+- apt换源：[清华源](https://mirror.tuna.tsinghua.edu.cn/help/ubuntu/)，[中科大源](https://mirrors.ustc.edu.cn/help/ubuntu.html#__tabbed_4_2),[阿里源(这个源少包)](https://developer.aliyun.com/mirror/ubuntu)`/etc/apt/sources.list`，`/etc/apt/sources.list.d/ubuntu.sources`
 	备份：
 	```
 	sudo cp /etc/apt/sources.list /etc/apt/sources.bak1
@@ -214,15 +274,51 @@ echo "Port 22" >> /etc/ssh/sshd_config
 echo "PermitRootLogin yes" >> /etc/ssh/sshd_config # 允许root用户SSH登录
 echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config #启用密码认证
 echo "X11Forwarding yes" >> /etc/ssh/sshd_config #允许X11 GUI 转发
-service ssh start
-service ssh status
+systemctl enable ssh # 设置 SSH 服务开机自启
+systemctl start ssh
+systemctl status ssh
 ```
 ## 客户端
 ```shell
 sudo apt install openssh-client
-ssh -X root@localhost -p 2222
+ssh -X root@localhost -p 22
 ```
+- 设置免密：首先在本地运行ssh-keygen，复制生成的`*.pub`文件字符串到服务端的`~/.ssh/authorized_keys`中
+## x11转发
+在window上只有TCP有效，而ubuntu似乎因为wayland的x11兼容层有问题，只能使用ssh转发
+### ssh隧道转发
+ssh配置的X11转发很不稳定，帧率较低。只需在ssh时添加-X参数即可自动配置`DISPLAY`环境变量，如果`DISPLAY`不对则需要手动配置
+- 编辑ssh配置文件`/etc/ssh/sshd_config`:
+```bash
+X11UseLocalhost yes
+systemctl restart ssh
+```
+- 在服务端查看localhost的ip：
+```bash
+root@961c4c78fbcd:~# cat /etc/hosts
+127.0.0.1	localhost #确认localhost的ip
+::1	localhost ip6-localhost ip6-loopback
+fe00::	ip6-localnet
+ff00::	ip6-mcastprefix
+ff02::1	ip6-allnodes
+ff02::2	ip6-allrouters
+172.17.0.3	961c4c78fbcd
+```
+- 对于ubuntu客户端：查看x11授权cookie
+```bash
 
+root@961c4c78fbcd:~# xauth list
+961c4c78fbcd/unix:10  MIT-MAGIC-COOKIE-1  46491779e0b4db6a112b29064b0e91c2 #这里看到是10
+```
+- 设置环境变量并验证：
+```bash
+export DISPLAY=127.0.0.1:10 #localhost和显示id
+apt install x11-apps
+xclock
+xeyes
+```
+### TCP直连
+- 如果在windows配置x11参考：[win10+Xming+Xshell显示远程linux服务器的图形程序窗口_xming和xshell-CSDN博客](https://blog.csdn.net/Strive_For_Future/article/details/123219083)
 # 环境变量
 - 命令：
   1. 列出环境变量：env
@@ -240,15 +336,40 @@ ssh -X root@localhost -p 2222
     - **~/.zshrc**：如果你使用的是zsh shell，这个文件将包含用户级别的环境变量。
 3. **会话级别**：
     - 当你打开一个新的终端会话时，环境变量也可以在当前会话中被临时设置，例如通过`export`命令。
+
 # else
-- [Linux目录配置与FHS标准](https://www.cnblogs.com/antLaddie/p/17613126.html#_label14):[关于usr目录参考](https://www.kawabangga.com/posts/3777):第三方软件安装在/opt目录下
+
 - [需要输入密钥环密码](https://zhuanlan.zhihu.com/p/71924384)：seahorse将login密码设置为空
 - [Ubuntu不能挂载移动硬盘问题mounting /dev/sda1](https://blog.csdn.net/qq_27525611/article/details/134363226)
 - [调整ubuntu分区大小](https://blog.csdn.net/qq_37071435/article/details/116841152)：`gparted`
-- 自说自话的程序将权重下载在哪里？：/root/.cache/
+- 程序将权重下载在哪里？：/root/.cache/
 - /dev/shm：是在内存上开辟存储空间存放数据
+- [内置屏幕亮度调节失效](https://blog.csdn.net/qq_73087022/article/details/134496611)
 
+## fhs
+- [Linux目录配置与FHS标准](https://www.cnblogs.com/antLaddie/p/17613126.html#_label14):[关于usr目录参考](https://www.kawabangga.com/posts/3777):第三方软件安装在/opt目录下
+```bash
+├── bin -> usr/bin #基本的命令二进制文件,ls、cp、mv、rm、cat等
+├── sbin -> usr/sbin #root用户使用的系统命令
+├── etc #配置文件
+├── opt #存放第三方软件包或自己开发的应用程序
+├── usr #系统核心资源目录，存放用户共享的程序、库、文档等
+│   ├── bin #放置发行版管理的程序
+│   └── local/bin #放置用户自己的程序
+├── dev #设备即文件
+├── lib -> usr/lib #运行库
+├── lib32 -> usr/lib32 #运行库
+├── lib64 -> usr/lib64 #运行库
+├── media #挂载可移动媒体设备
+├── mnt #临时挂载点
+├── proc #进程文件系统
+├── swap.img #交换分区镜像文件
+├── sys #提供了对内核和系统信息的访问
+├── tmp #存储临时文件
+├── boot #开机会使用到的文件
+└── var #缓存
 
+```
 ## 蓝牙wifi等驱动不正常
 ```shell
 yobot@tkbk-ub20:~$ uname -r
@@ -260,6 +381,18 @@ yobot@tkbk-ub20:~$ uname -r
 sudo apt install linux-modules-extra-$(uname -r)
 ```
 ## ubuntu25.04的文件浏览器闪退
+原因是坚果云注入了一些东西，新版本兼容问题
+### 禁用坚果云的某些扩展
+```bash
+sudo mkdir -p /usr/lib/x86_64-linux-gnu/nautilus/extensions-4/disabled
+sudo mv /usr/lib/x86_64-linux-gnu/nautilus/extensions-4/libnautilus-nutstore.* \
+        /usr/lib/x86_64-linux-gnu/nautilus/extensions-4/disabled/
+
+
+nautilus -q
+nautilus
+```
+### 使用nemo
 - 使用nemo替代：
 	```bash
 	sudo apt install nemo
@@ -301,6 +434,8 @@ xdg-mime query default application/zip
 ```
 
 - 将文件夹打开方式切换为nemo，这会修改`~/.config/mimeapps.list`：
-	```bash
-	xdg-mime default nemo.desktop inode/directory
-	```
+```bash
+xdg-mime default nemo.desktop inode/directory
+```
+## 向日葵安装
+https://zhuanlan.zhihu.com/p/691858812

@@ -1,10 +1,8 @@
 ---
 created: 2025-01-30 09:07
-modified: 2025-01-30 09:07
+modified: 2026-02-07 22:10
 tags:
 ---
-
-
 # Conda
 Conda 是一个跨平台、跨语言的包管理与环境管理工具，通过创建隔离的独立环境，解决不同项目的依赖冲突问题。由于部分 Python 包是用 C 语言实现的(如NumPy)，Conda 需要模拟某些系统目录，以支持它们的运行和编译，例如：
 - **`bin/`**：包含可执行工具，如 `python`、`pip`，以及 `gcc`、`cmake` 等用于构建 C/C++ 扩展的工具。
@@ -34,10 +32,13 @@ conda config --remove-key custom_channels
 ```
 - 添加channel：参考[conda国内源大全](https://zhuanlan.zhihu.com/p/584580420)，只有南科大有nvidia的镜像
 ```shell
-conda config --add channels defaults
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+#conda config --add channels defaults
 conda config --add default_channels https://mirrors.sustech.edu.cn/anaconda/pkgs/main
 conda config --add default_channels https://mirrors.sustech.edu.cn/anaconda/pkgs/msys2 #为windows提供shell环境
 conda config --set custom_channels.pytorch https://mirrors.sustech.edu.cn/anaconda/cloud
+conda config --set custom_channels.conda-forge https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud 
 conda config --set custom_channels.nvidia https://mirrors.sustech.edu.cn/anaconda-extra/cloud
 ```
 - 更新索引缓存:
@@ -76,28 +77,31 @@ pip是python的包管理工具
 - pip安装的Python包在：`/usr/local/lib/python3.X/dist-packages/`中,也就是解释器的dist-packages中
 - pip包的格式：`.whl` 、`.tar.gz` 或 `.zip`
 ### 配置
-- 设置源：配置文件有3个级别、系统(global)、用户(user)、虚拟环境(site)，优先级顺序：`site` > `user` > `global`
+设置源：配置文件有3个级别、系统(global)、用户(user)、虚拟环境(site)，优先级顺序：`site` > `user` > `global`
 1. 查看配置文件路径和内容：
-	```shell
-	pip config debug
-	```
-2. [pip源汇总](https://blog.csdn.net/u014451778/article/details/146163709)：
-	- 清华源：qinghua
-	```bash
-	 -i https://pypi.tuna.tsinghua.edu.cn/simple
-	```
-	- 使用：
-	```shell
-	# 临时使用
-	pip install numpy -i url
-	# 永久配置
-	pip config set global.index-url url
-	```
-	- 或者通过环境变量临时启用：qinghuahuanjing
 ```bash
-export PIP_EXTRA_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+pip config debug
 ```
-3. 查看生效的源：`pip -v config list`
+2. 查看生效的配置项：
+```bash
+pip -v config list
+```
+3. [pip源汇总](https://blog.csdn.net/u014451778/article/details/146163709)：
+```bash
+https://pypi.tuna.tsinghua.edu.cn/simple
+https://pypi.mirrors.ustc.edu.cn/simple
+https://mirrors.aliyun.com/pypi/simple
+https://mirrors.cloud.tencent.com/pypi/simple/
+```
+4. 使用：
+```shell
+# 临时使用
+pip install numpy -i url
+# 永久配置
+pip config set global.index-url https://pypi.mirrors.ustc.edu.cn/simple
+# 或者通过环境变量临时启用：
+export PIP_EXTRA_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
+```
 
 ### 命令
 - 查看本地安装的包：
@@ -918,6 +922,11 @@ if new_path not in sys.path:
 	for path in sys.path:
 		print(path)
 	```
+- 常用：
+```python
+#添加文件的上一级路径为搜索路径
+sys.path.insert(0, './')
+```
 #### 相对导入
 相对导入从module的`__package__`计算绝对路径，而当一个模块作为main被运行时，他的`__package__`为None,因此使用相对导入的模块不能被直接执行,会报错`ImportError: attempted relative import with no known parent package`
 - 相对导入必须以from开头

@@ -1,8 +1,9 @@
 ---
 created: 2025-07-14 20:01
-modified: 2025-07-14 20:01
+modified: 2026-02-12 16:46
 tags:
 ---
+
 # 安装pytorch
 1. python&torch的版本：pytorch与python版本之间有依赖关系，目前最新版本的pytorch2.7需要python版本>=3.9,其他版本参考[pytorch与python版本对应关系](https://github.com/pytorch/vision#installation)进行选择
 2. 到[官网](https://pytorch.org/get-started/locally/)找到对应命令下载：
@@ -193,8 +194,13 @@ train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_worker
 定义模型时，主要使用`torch.nn`这个类来完成网络的搭建，nn 是 Neural Networks的缩写，直接表明了该模块的用途 —— 提供构建和训练神经网络所需的所有工具
 ### Module
 nn.Module是 PyTorch 中所有神经网络模块的基类通过继承 nn.Module，你可以创建自定义的神经网络层或完整的模型，并利用 PyTorch 提供的自动求导、参数管理和设备管理等功能
-##### 属性和方法
+#### 属性和方法
 - `__init__()`：初始化模型结构，定义各层参数
+- 注册机制：
+```python
+self.register_parameter(name, param)#添加到模型参数参与训练
+self.register_buffer(name, tensor)#添加到模型参数不参与训练
+```
 - `forward()`：定义前向传播逻辑
 - `eval()`：停用Dropout 层，Batch Normalization使用全局统计量
 - `train()`：行为与eval对应
@@ -207,25 +213,36 @@ nn.Module是 PyTorch 中所有神经网络模块的基类通过继承 nn.Module
 - `state_dict()`：存储模型中所有可学习参数的名称和值
 - `load_state_dict()`：从状态字典加载模型参数
 - `add_module`：添加模块
-##### else
-- 保存参数：
+#### 保存和加载
 ```python
-torch.save(model.state_dict(), 'model_weights.pth')  # 只保存参数
-torch.save(model, 'full_model.pth')# 保存完整模型（结构+参数）
-```
-- 加载参数：
-```python
-# 加载参数模型
+#1.只保存权重
+torch.save(model.state_dict(), 'model_weights.pth')
 loaded_model = MyModel()
 loaded_model.load_state_dict(torch.load('model_weights.pth'))
-loaded_model.eval()  # 设置为评估模式（重要！）
 
-# 加载完整模型
+#2.保存完整模型（结构+权重）
+torch.save(model, 'full_model.pth')# 保存完整模型（结构+参数）
 loaded_model = torch.load('full_model.pth')
+```
+不同的权重格式`ckpt`、`pt`和`pth`没什么不同，他们都可以认为是字典，torch.save可以用来保存任意字典对象，这使得我们不仅仅可以保存权重，还可以保存模型的训练状态等其他参数
+```python
+checkpoint = {
+    "model": model.state_dict(),
+    "optimizer": optimizer.state_dict(),
+    "epoch": current_epoch,
+    "global_step": global_step,
+}
+torch.save(checkpoint, "model_last.pth")
+
+# 加载 checkpoint
+checkpoint = torch.load("checkpoint.pth")
+print("Keys in checkpoint:", checkpoint.keys())
+model.load_state_dict(checkpoint["model"])
+optimizer.load_state_dict(checkpoint["optimizer"])
 ```
 ### Parameter
 https://zhuanlan.zhihu.com/p/510490016
-`nn.Parameter()`用于注册一个tensor为可训练参数
+`nn.Parameter()`用于注册一个tensor为可训练参数，nn.Parameter会自动被认为是module的可训练参数，即加入到parameter()这个迭代器中去；而module中非nn.Parameter()的普通tensor是不在parameter中的
 ### 基础层
 - `nn.Linear`：全连接层，参数为输入和输出维度
 ```python
@@ -247,6 +264,10 @@ layer = nn.Conv2d(in_channels, out_channels, kernel_size)
 - `nn.ConvTranspose2d`：转置卷积层，扩大特征图尺寸
 ```python
 layer = nn.ConvTranspose2d(in_channels, out_channels, kernel_size)
+```
+- `nn.AvgPool2d`：二维平均池化层，用于降维
+```python
+layer = nn.AvgPool2d(kernel_size=2, stride=2)
 ```
 - `nn.MaxPool2d`：二维最大池化层，用于降维
 ```python
@@ -327,7 +348,100 @@ optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 - `torch.optim.Adam`：自适应学习率优化器。
 ```python
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-  ```
+```
 
 # torchvision
 torchvision.models提供了一些经典网络架构的预训练模型
+
+
+# else
+
+估算训练时间
+- 100W条数据，每条数据200次：需要过2亿次数据
+- batch32，那么需要625万epoch
+- 每步15s
+- 625万x15s/3600s=26041h=1085天
+- 48张卡需要1085/48=22.6天
+
+## 网络计算量统计
+MACs：乘加算一次，thop / fvcore / ptflops
+FLOPs：乘法和加法各算一次，torch.utils.flop_counter
+```python
+import torch
+from torchvision.models import resnet50
+
+# -----------------------------
+# 1. 构建模型与输入
+# -----------------------------
+model = resnet50()
+model.eval()
+inputs = torch.randn(1, 3, 224, 224)
+
+print("=" * 70)
+print("Model: ResNet50, Input: (1, 3, 224, 224)")
+print("=" * 70)
+
+# -----------------------------
+# 2. 方法一：thop
+# -----------------------------
+from thop import profile
+
+flops_thop, params_thop = profile(model, inputs=(inputs,), verbose=False)
+print("[THOP]")
+print(f"FLOPs: {flops_thop / 1e9:.3f} G")
+print(f"Params: {params_thop / 1e6:.3f} M")
+print("-" * 70)
+
+# -----------------------------
+# 3. 方法二：fvcore
+# -----------------------------
+from fvcore.nn import FlopCountAnalysis, parameter_count
+
+flops_fvcore = FlopCountAnalysis(model, inputs)
+params_fvcore = parameter_count(model)
+total_params = params_fvcore[""]   # 只取总数
+print("[FVCORE]")
+print(f"FLOPs: {flops_fvcore.total() / 1e9:.3f} G")
+
+print("Params:", total_params / 1e6, "M")
+print("-" * 70)
+
+# -----------------------------
+# 4. 方法三：ptflops
+# -----------------------------
+from ptflops import get_model_complexity_info
+
+with torch.no_grad():
+    flops_ptflops, params_ptflops = get_model_complexity_info(
+        model,
+        (3, 224, 224),
+        as_strings=False,
+        print_per_layer_stat=False,
+        verbose=False
+    )
+
+print("[PTFLOPS]")
+print(f"FLOPs: {flops_ptflops / 1e9:.3f} G")
+print(f"Params: {params_ptflops / 1e6:.3f} M")
+print("-" * 70)
+
+# -----------------------------
+# 5. 方法四：torch.utils.flop_counter (官方)
+# -----------------------------
+from torch.utils.flop_counter import FlopCounterMode
+
+with FlopCounterMode(model) as fc:
+    _ = model(inputs)
+
+total_flops = fc.get_total_flops()
+
+print("[TORCH FLOP_COUNTER]")
+print(f"FLOPs: {total_flops / 1e9:.3f} G")
+
+# 这个接口不直接给参数量，用 PyTorch 自己算
+total_params = sum(p.numel() for p in model.parameters())
+print(f"Params: {total_params / 1e6:.3f} M")
+print("-" * 70)
+```
+
+

@@ -1,17 +1,19 @@
 ---
 created: 2024-11-06 20:03:37 星期三
-modified: 2024-11-10 12:35:09 星期日
+modified: 2026-02-10 17:43
 tags:
 ---
-# 安装和配置
+# 安装
 ## docker
 - [安装 |Docker 文档](https://docs.docker.com/engine/install/)
-- [安装后步骤 |Docker 文档](https://docs.docker.com/engine/install/linux-postinstall/)：[docker命令免sudo](https://www.cnblogs.com/fireblackman/p/16054371.html)
 - [docker pull走代理](https://knowledge-things.readthedocs.io/zh-cn/latest/tutorials/docker_pull_proxy.html)：docker拉取镜像的时候，不走系统配置的代理环境，所以需要单独配置它的代理文件,同时代理软件走全局
 - [docker镜像仓库](https://hub.docker.com/search?q=ros)
-## pull 镜像源
-由于国内网络环境，参考[设置镜像拉取源](https://www.cnblogs.com/ikuai/p/18233775)设置国内镜像源：
-编辑`/etc/docker/daemon.json`，如：
+
+# 配置
+- [安装后步骤 |Docker 文档](https://docs.docker.com/engine/install/linux-postinstall/)：[docker命令免sudo](https://www.cnblogs.com/fireblackman/p/16054371.html)
+## pull
+由于国内网络环境，参考[设置镜像拉取源](https://www.cnblogs.com/ikuai/p/18233775)设置国内镜像源并设置[pull断点续传](https://blog.csdn.net/weixin_40465062/article/details/138290828)：
+编辑`gedit /etc/docker/daemon.json`，如：
 ```json
 {
     "registry-mirrors": [
@@ -25,7 +27,8 @@ tags:
             "args": [],
             "path": "nvidia-container-runtime"
         }
-    }
+    },
+    "features": {"containerd-snapshotter": true}
 }
 ```
 重启docker服务：
@@ -99,58 +102,73 @@ export https_proxy=http://172.17.0.1:7897;export http_proxy=http://172.17.0.1:78
 
 
 # 构建镜像
-构建镜像的目的是提供一个能够复用的环境，由于高速的网络不是随时待命的，我放弃了学习dockerfile的方式，选择容器commit为镜像的方式，并且将代码、和conda挂载在外面，里记录一些步骤和常用软件包：
+在存放 Dockerfile 的目录下，执行以下命令构建镜像：
+```bash
+docker build -t yama:ub22_cuda128_cudnn9 .
+```
+
+## 容器commit
+构建镜像的目的是提供一个能够复用的环境，由于高速的网络不是随时待命的，选择容器commit为镜像的方式，并且将代码、和conda挂载在外面，里记录一些步骤和常用软件包：
 1. 首先在[nvidia/cuda](https://hub.docker.com/r/nvidia/cuda)仓库选择需要的镜像：选择devel和ubuntu
 	- base(基本运行环境，无法编译开发)、runtime(更全面的运行环境，无法编译开发)、devel（最全，可编译）：
 	- 系统：ubuntu、centos等
 	- cudnn
 2. apt换源
-3. 安装一些包，列一些我能想到的：
-	1. apt install iputils-ping：ping
-	2. net-tools：ifconfig
-	3. iproute2：ip address
-	4. git
-	5. gedit
-	6. wget
-	7. tree
-	8. curl
+3. pip换源
+4. 安装一些包，列一些我能想到的：
+```bash
+apt install -y iputils-ping   # ping 命令（网络连通性测试）
+apt install -y net-tools      # ifconfig、netstat 等传统网络工具
+apt install -y iproute2       # ip 命令（现代网络管理工具）
+apt install -y git            # 分布式版本控制系统
+apt install -y gedit          # GNOME 桌面下的图形化文本编辑器
+apt install -y wget           # 命令行下载工具
+apt install -y tree           # 树状显示目录内容
+apt install -y curl           # 数据传输工具，常用来调用 API
+apt install -y pciutils       # PCI/PCIe 工具
+apt install -y mesa-utils     # glxinfo 等 OpenGL 信息查看
+```
 4. 安装conda或在`~/.bashrc`中索引conda，并[配置conda源](python.md#channel)
-	```bash
-	# >>> conda initialize >>>
-	# !! Contents within this block are managed by 'conda init' !!
-	__conda_setup="$('/root/host_share/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
-	if [ $? -eq 0 ]; then
-	    eval "$__conda_setup"
-	else
-	    if [ -f "/root/host_share/miniconda3/etc/profile.d/conda.sh" ]; then
-	        . "/root/host_share/miniconda3/etc/profile.d/conda.sh"
-	    else
-	        export PATH="/root/host_share/miniconda3/bin:$PATH"
-	    fi
-	fi
-	unset __conda_setup
-	# <<< conda initialize <<<
-	```
+```bash
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/root/host_share/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+eval "$__conda_setup"
+else
+if [ -f "/root/host_share/miniconda3/etc/profile.d/conda.sh" ]; then
+	. "/root/host_share/miniconda3/etc/profile.d/conda.sh"
+else
+	export PATH="/root/host_share/miniconda3/bin:$PATH"
+fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+```
 5. 存成镜像
 
 # 运行模板
-
 ``` bash
 docker run --privileged -itd \
-  --name langrasp \
+  --name test \
   --runtime=nvidia \
   --gpus all \
   -m 8g \
   --memory-swap=16g \
   --shm-size 8g \
   --cpus 8\
+  --network host\
   -e DISPLAY=:0 \
   -e NVIDIA_DRIVER_CAPABILITIES=all \
+  -v /dev:/dev \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   -v /home/yama/docker_share:/root/host_share \
   -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket \
-36c
+10a
 ```
+
+
+
 
 ## 容器资源
 ### 内存
@@ -159,10 +177,12 @@ docker run --privileged -itd \
 `--memory-swap`：内存和swap的总大小，未指定时，相当于两倍-m大小，也就是swap=m
 ```bash
 df -h /dev/shm # 在容器中查看共享内存
-cat /sys/fs/cgroup/memory.max # 查看内存大小
-cat /sys/fs/cgroup/memory.swap.max # 查看swap大小
-
+cat /sys/fs/cgroup/memory.max | numfmt --to=iec --suffix=B # 查看内存大小
+cat /sys/fs/cgroup/memory.swap.max | numfmt --to=iec --suffix=B # 查看swap大小
 mount -o remount,size=16G /dev/shm # 临时调整共享内存为16G
+
+#调整容器swap大小
+docker update --memory 1g --memory-swap 2g <container_id>
 ```
 ### cpu
 - nproc：查看宿主机cpu核心数
@@ -170,33 +190,19 @@ mount -o remount,size=16G /dev/shm # 临时调整共享内存为16G
 `--cpuset-cpus`：固定使用的cpu核心id，使用cat /sys/fs/cgroup/cpuset.cpu查看允许使用的核心id
 ### 数据卷
 [避免docker挂载时产生root权限文件](https://geofftools.cn/blog/mount-docker-without-creating-root-file/)：还是没有一个好的方式
+### 外设
+-v /dev:/dev
+### 网络
+--network host
 ## 容器内的GUI显示
 [Docker容器显示图形到宿主机屏幕](https://blog.csdn.net/Frank_Abagnale/article/details/80243939?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromBaidu-3.control&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromBaidu-3.control)
-### 挂载方式
-- `-v /tmp/.X11-unix:/tmp/.X11-unix`：共享本地unix端口
-- `-e DISPLAY=:0`,`-e DISPLAY=unix:0有些程序报qt相关的错`
-- 宿主机运行xhost +
-### 网络方式
-shh 配置的X11转发很不稳定，帧率较低
-1. 首先配置[ssh](ubuntu.md#ssh工具)
-2. 根据cat /etc/hosts和xauth list设置服务端的DISPLAY变量如：(X11转发方式)
-	```shell
-	root@961c4c78fbcd:~# cat /etc/hosts
-	127.0.0.1	localhost #确认localhost的ip
-	::1	localhost ip6-localhost ip6-loopback
-	fe00::	ip6-localnet
-	ff00::	ip6-mcastprefix
-	ff02::1	ip6-allnodes
-	ff02::2	ip6-allrouters
-	172.17.0.3	961c4c78fbcd
-	root@961c4c78fbcd:~# xauth list
-	961c4c78fbcd/unix:10  MIT-MAGIC-COOKIE-1  46491779e0b4db6a112b29064b0e91c2 #这里看到是10
-	
-	export DISPLAY=127.0.0.1:10
-	
-	apt install xarclock
-	xarclock
-	```
+- 挂载方式：
+	- `-v /tmp/.X11-unix:/tmp/.X11-unix`：共享本地unix端口
+	- `-e DISPLAY=:0`,`-e DISPLAY=unix:0有些程序报qt相关的错`
+	- 宿主机运行xhost +
+- 网络方式：[x11转发](ubuntu.md#x11转发)
+
+
 
 ## 例子
 
